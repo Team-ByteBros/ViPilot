@@ -689,7 +689,10 @@ class ResumeParser:
         """Main parsing function."""
         # Extract text
         text = self.extract_text(file_path)
-        
+        return self.parse_text(text)
+
+    def parse_text(self, text):
+        """Parse structured data from text."""
         # Extract basic info
         basic_info = self.extract_basic_info(text)
         
