@@ -532,34 +532,37 @@ class ResumeParser:
 
 
     def _extract_tech_from_line(self, line, tech_list):
-        """Helper method to extract technologies from a single line."""
         line_lower = line.lower()
-        # tech_list = []
-        
-        # Pattern 1: Explicit "Tech:" or "Technologies Used:"
+
+        # ---------- Pattern 1: Explicit "Tech / Technologies used" ----------
         tech_pattern = r'(tech(?:nologies)?(?:\s+used)?|built\s+with|stack)[:\s]*(.+)'
         match = re.search(tech_pattern, line, re.IGNORECASE)
-        
+
+        tech_string = None
+
         if match:
             tech_string = match.group(2)
-            # Split by comma
-            techs = re.split(r'[,]', tech_string)
+
+        # ---------- Pattern 2: Project title | Tech1, Tech2 ----------
+        elif '|' in line:
+            parts = line.split('|', 1)
+            if len(parts) == 2:
+                tech_string = parts[1]
+
+        # ---------- Extract technologies ----------
+        if tech_string:
+            techs = re.split(r'[,/]', tech_string)
             for tech in techs:
                 tech_clean = tech.strip().lower()
-                # Remove common words
-                tech_clean = re.sub(r'\b(and|or|with)\b', '', tech_clean).strip()
-                
-                # Match against known skills
+
                 for known_skill in self.known_skills:
                     if len(known_skill) <= 3:
-                        # For short words, require exact word match with word boundaries
-                        pattern = r'\b' + re.escape(known_skill) + r'\b'
-                        if re.search(pattern, tech_clean):
+                        if re.search(r'\b' + re.escape(known_skill) + r'\b', tech_clean):
                             tech_list.append(known_skill)
                     else:
-                        # For longer words, substring match is fine
                         if known_skill in tech_clean:
                             tech_list.append(known_skill)
+
         
 
     # def find_role_in_text(self, text):
@@ -695,7 +698,8 @@ class ResumeParser:
         
         # Split into sections
         sections = self.split_into_sections(text)
-        print("projects : ", sections['projects'])
+        sections['project_technologies'] = list(set(sections['project_technologies']))
+        print("project_tech : ", sections['project_technologies'])
         # Extract structured data
         result = {
             'name': basic_info['name'],
@@ -726,6 +730,6 @@ class ResumeParser:
 
 if __name__ == "__main__":
     parser = ResumeParser()
-    resume_path = "Python backend/Resumes/Meet_Oza_Resume_2.9.pdf"
+    resume_path = "Python backend/Resumes/Suraj_Shingade_Resume_Update.pdf"
     parsed_data = parser.parse(resume_path)
     print(json.dumps(parsed_data, indent=2))
