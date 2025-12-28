@@ -30,7 +30,7 @@ class ResumeParser:
             # Data & AI
             'data scientist', 'data analyst', 'data engineer',
             'machine learning engineer', 'ai engineer', 'ml engineer',
-            'business analyst', 'research scientist',
+            'business analyst', 'research scientist', 'artificial intelligence intern',
             
             # Design & Product
             'ui/ux designer', 'product designer', 'graphic designer',
@@ -38,7 +38,7 @@ class ResumeParser:
             
             # Internships & Entry Level
             'intern', 'trainee', 'associate', 'junior developer',
-            'software intern', 'data science intern', 'sde intern',
+            'software intern', 'data science intern', 'sde intern', 'cloud application developer trainee',
             
             # Leadership & Management
             'team lead', 'tech lead', 'engineering manager',
@@ -563,8 +563,6 @@ class ResumeParser:
                         if known_skill in tech_clean:
                             tech_list.append(known_skill)
 
-        
-
     # def find_role_in_text(self, text):
     #     """Find a job role in the given text."""
     #     text_lower = text.lower()
@@ -587,106 +585,271 @@ class ResumeParser:
         
     #     return None
     
+    def extract_experience(self, exp_lines):
+        """Extract work experience - role and months worked."""
+        experiences = []
+        
+        i = 0
+        while i < len(exp_lines):
+            line = exp_lines[i].strip()
+            line_lower = line.lower()
+            
+            # Skip empty lines
+            if not line:
+                i += 1
+                continue
+            
+            # Skip bullet points (these are descriptions, not roles)
+            if line.startswith('•') or line.startswith('●') or line.startswith('-') or line.startswith('○'):
+                i += 1
+                continue
+            
+            # Skip lines that are clearly descriptions (contain common description words)
+            description_indicators = [
+                'developed', 'worked', 'completed', 'gained', 'implemented',
+                'created', 'built', 'designed', 'managed', 'led', 'achieved',
+                'leveraged', 'integrated', 'deployed', 'features', 'include'
+            ]
+            
+            # If line starts with description words, skip it
+            first_word = line_lower.split()[0] if line_lower.split() else ''
+            if first_word in description_indicators:
+                i += 1
+                continue
+            
+            # Skip if line contains percentage or numbers like "92 percent accuracy"
+            if re.search(r'\d+\s*(percent|%|accuracy)', line_lower):
+                i += 1
+                continue
+            
+            # Skip lines that look like continuation of descriptions
+            if line_lower.startswith(('and ', 'or ', 'including ', 'with ', 'through ')):
+                i += 1
+                continue
+            
+            # Look for date pattern in the line - this is likely a role line
+            has_date = self._has_date_pattern(line)
+            
+            # Look for role keywords
+            has_role = any(role in line_lower for role in self.known_roles)
+            
+            # Look for company indicators (Remote, location, |)
+            has_company_indicator = '|' in line or 'remote' in line_lower
+            
+            # This line is likely a role if:
+            # 1. It has a date pattern, OR
+            # 2. It has a known role keyword, OR  
+            # 3. It has company indicators AND is not too long
+            is_role_line = (has_date or has_role or (has_company_indicator and len(line) < 100))
+            
+            if not is_role_line:
+                i += 1
+                continue
+            
+            experience_entry = {
+                'role': None,
+                'months': None
+            }
+            
+            # Extract role from the line
+            # Pattern: "Role Title" followed by date, or "Company | Role"
+            
+            # First, try to extract date from this line
+            months = self._extract_duration(line)
+            if months is not None:
+                experience_entry['months'] = months
+                
+                # Remove date part to get role
+                line_without_date = re.sub(
+                    r'(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*[\s\'`]*\d{2,4}\s*[-–]\s*(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec|present|current)[a-z]*[\s\'`]*\d{0,4}',
+                    '',
+                    line,
+                    flags=re.IGNORECASE
+                ).strip()
+                
+                # Also remove year-only patterns
+                line_without_date = re.sub(r'\d{4}\s*[-–]\s*\d{4}', '', line_without_date).strip()
+                
+                experience_entry['role'] = line_without_date
+            
+            # If no date in current line, look ahead
+            if experience_entry['months'] is None:
+                for j in range(i + 1, min(i + 3, len(exp_lines))):
+                    next_line = exp_lines[j].strip()
+                    months = self._extract_duration(next_line)
+                    if months is not None:
+                        experience_entry['months'] = months
+                        break
+            
+            # If still no role extracted, try pattern matching
+            if not experience_entry['role']:
+                # Pattern: "Company, Role" or "Role, Company"
+                if ',' in line:
+                    parts = [p.strip() for p in line.split(',')]
+                    
+                    # Check which part contains a known role
+                    for part in parts:
+                        part_lower = part.lower()
+                        for known_role in self.known_roles:
+                            if known_role in part_lower:
+                                experience_entry['role'] = part
+                                break
+                        if experience_entry['role']:
+                            break
+                    
+                    # If no known role found, take first part (usually role comes first)
+                    if not experience_entry['role'] and len(parts) >= 1:
+                        experience_entry['role'] = parts[0]
+                else:
+                    # Check next line for company name (if it has | or Remote)
+                    if i + 1 < len(exp_lines):
+                        next_line = exp_lines[i + 1].strip()
+                        if '|' in next_line or 'remote' in next_line.lower():
+                            # Current line is the role
+                            experience_entry['role'] = line
+            
+            # Clean up role - remove trailing month names
+            if experience_entry['role']:
+                experience_entry['role'] = re.sub(
+                    r'\s*(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*$',
+                    '',
+                    experience_entry['role'],
+                    flags=re.IGNORECASE
+                ).strip()
+            
+            # Only add if we have a valid role
+            if experience_entry['role'] and len(experience_entry['role']) > 5:
+                experiences.append(experience_entry)
+            
+            i += 1
+        
+        # Remove duplicates
+        seen = set()
+        filtered = []
+        for exp in experiences:
+            key = (exp['role'], exp['months'])
+            if key not in seen and exp['role']:
+                seen.add(key)
+                filtered.append(exp)
+        
+        return filtered
 
-    # def extract_experience(self, exp_lines):
-    #     """Extract work experience/internship details."""
-    #     experiences = []
-    #     i = 0
+    def _has_date_pattern(self, line):
+        """Check if line contains a date pattern."""
+        date_patterns = [
+            r'(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*[\s\'`]*\d{2,4}',
+            r'\d{4}\s*[-–]\s*\d{4}',
+            r'(present|current)'
+        ]
         
-    #     while i < len(exp_lines):
-    #         line = exp_lines[i].strip()
-            
-    #         # Skip bullet points and short lines
-    #         if line.startswith('•') or line.startswith('-') or len(line) < 5:
-    #             i += 1
-    #             continue
-            
-    #         # Look for lines that might contain company and role
-    #         # Pattern 1: "Company Name, Role"
-    #         # Pattern 2: "Company Name - Role"
-    #         # Pattern 3: "Role at Company Name"
-            
-    #         company = None
-    #         role = None
-    #         time_period = None
-            
-    #         # Check if line has company/role pattern
-    #         if ',' in line or '–' in line or ' - ' in line:
-    #             # Split by comma or dash
-    #             parts = re.split(r'[,–\-]', line, maxsplit=1)
-                
-    #             if len(parts) >= 2:
-    #                 part1 = parts[0].strip()
-    #                 part2 = parts[1].strip()
-                    
-    #                 # Check which part is role
-    #                 role1 = self.find_role_in_text(part1)
-    #                 role2 = self.find_role_in_text(part2)
-                    
-    #                 if role2:
-    #                     company = part1
-    #                     role = role2
-    #                 elif role1:
-    #                     role = role1
-    #                     company = part2
-    #                 else:
-    #                     # Default: first part is company
-    #                     company = part1
-    #                     role = part2
-    #         else:
-    #             # Single line - try to extract role from it
-    #             potential_role = self.find_role_in_text(line)
-    #             if potential_role:
-    #                 role = potential_role
-    #                 # Remove role from line to get company
-    #                 company = re.sub(re.escape(potential_role), '', line, flags=re.IGNORECASE).strip()
-    #                 company = re.sub(r'[,\-–]', '', company).strip()
-    #             else:
-    #                 company = line
-            
-    #         # Look ahead for date/time period in next few lines
-    #         for j in range(i + 1, min(i + 4, len(exp_lines))):
-    #             next_line = exp_lines[j].strip()
-                
-    #             # Date patterns
-    #             date_patterns = [
-    #                 r"(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*[\s'`]*\d{2,4}\s*[-–]\s*(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*[\s'`]*\d{2,4}",
-    #                 r"(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*[\s'`]*\d{2,4}\s*[-–]\s*(present|current)",
-    #                 r"\d{4}\s*[-–]\s*\d{4}",
-    #                 r"\d{4}\s*[-–]\s*(present|current)"
-    #             ]
-                
-    #             for pattern in date_patterns:
-    #                 match = re.search(pattern, next_line, re.IGNORECASE)
-    #                 if match:
-    #                     time_period = match.group(0)
-    #                     break
-                
-    #             if time_period:
-    #                 break
-            
-    #         # Only add if we have at least company or role
-    #         if company or role:
-    #             experiences.append({
-    #                 'company': company if company else None,
-    #                 'role': role if role else None,
-    #                 'time_period': time_period
-    #             })
-            
-    #         i += 1
+        for pattern in date_patterns:
+            if re.search(pattern, line, re.IGNORECASE):
+                return True
+        return False
+
+    def _extract_duration(self, line):
+        """Helper to calculate months of experience from duration string."""
+        from datetime import datetime
         
-    #     # Remove duplicates and invalid entries
-    #     seen = set()
-    #     filtered_experiences = []
-    #     for exp in experiences:
-    #         # Create a unique key
-    #         key = (exp['company'], exp['role'])
-    #         if key not in seen and (exp['company'] or exp['role']):
-    #             seen.add(key)
-    #             filtered_experiences.append(exp)
+        # Month name to number mapping
+        month_map = {
+            'jan': 1, 'january': 1,
+            'feb': 2, 'february': 2,
+            'mar': 3, 'march': 3,
+            'apr': 4, 'april': 4,
+            'may': 5,
+            'jun': 6, 'june': 6,
+            'jul': 7, 'july': 7,
+            'aug': 8, 'august': 8,
+            'sep': 9, 'september': 9,
+            'oct': 10, 'october': 10,
+            'nov': 11, 'november': 11,
+            'dec': 12, 'december': 12
+        }
         
-    #     return filtered_experiences
-    
+        # Pattern 1: "Aug'24 - Mar'25" or "Aug 2024 - Mar 2025"
+        pattern1 = r"(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*[\s'`]*(\d{2,4})\s*[-–]\s*(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*[\s'`]*(\d{2,4})"
+        match = re.search(pattern1, line, re.IGNORECASE)
+        
+        if match:
+            start_month = match.group(1).lower()
+            start_year = match.group(2)
+            end_month = match.group(3).lower()
+            end_year = match.group(4)
+            
+            # Convert 2-digit year to 4-digit
+            if len(start_year) == 2:
+                start_year = '20' + start_year
+            if len(end_year) == 2:
+                end_year = '20' + end_year
+            
+            # Get month numbers
+            start_month_num = month_map.get(start_month[:3])
+            end_month_num = month_map.get(end_month[:3])
+            
+            if start_month_num and end_month_num:
+                # Calculate months difference
+                start_date = datetime(int(start_year), start_month_num, 1)
+                end_date = datetime(int(end_year), end_month_num, 1)
+                
+                months_diff = (end_date.year - start_date.year) * 12 + (end_date.month - start_date.month)
+                return months_diff + 1  # +1 to include both start and end months
+        
+        # Pattern 2: "Aug'24 - Present" or "Aug 2024 - Present"
+        pattern2 = r"(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*[\s'`]*(\d{2,4})\s*[-–]\s*(present|current)"
+        match = re.search(pattern2, line, re.IGNORECASE)
+        
+        if match:
+            start_month = match.group(1).lower()
+            start_year = match.group(2)
+            
+            # Convert 2-digit year to 4-digit
+            if len(start_year) == 2:
+                start_year = '20' + start_year
+            
+            # Get month number
+            start_month_num = month_map.get(start_month[:3])
+            
+            if start_month_num:
+                # Calculate from start to current month
+                start_date = datetime(int(start_year), start_month_num, 1)
+                current_date = datetime.now()
+                
+                months_diff = (current_date.year - start_date.year) * 12 + (current_date.month - start_date.month)
+                return months_diff + 1
+        
+        # Pattern 3: "2024 - 2025" (assume full years)
+        pattern3 = r"(\d{4})\s*[-–]\s*(\d{4})"
+        match = re.search(pattern3, line)
+        
+        if match:
+            start_year = int(match.group(1))
+            end_year = int(match.group(2))
+            
+            # Calculate year difference in months
+            return (end_year - start_year) * 12
+        
+        # Pattern 4: "Jan 2025 – April 2025"
+        pattern4 = r"(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s+(\d{4})\s*[-–]\s*(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s+(\d{4})"
+        match = re.search(pattern4, line, re.IGNORECASE)
+        
+        if match:
+            start_month = match.group(1).lower()
+            start_year = match.group(2)
+            end_month = match.group(3).lower()
+            end_year = match.group(4)
+            
+            start_month_num = month_map.get(start_month[:3])
+            end_month_num = month_map.get(end_month[:3])
+            
+            if start_month_num and end_month_num:
+                start_date = datetime(int(start_year), start_month_num, 1)
+                end_date = datetime(int(end_year), end_month_num, 1)
+                
+                months_diff = (end_date.year - start_date.year) * 12 + (end_date.month - start_date.month)
+                return months_diff + 1
+        
+        return None
 
     def parse(self, file_path):
         """Main parsing function."""
@@ -711,6 +874,7 @@ class ResumeParser:
             text
         ),
             'education': self.extract_education(sections['education']),
+            'experience': self.extract_experience(sections['experience']) 
             # 'techs': self.extract_tech_proj(sections['projects']),
             # 'experience': self.extract_experience(sections['experience'])
         }
@@ -730,6 +894,6 @@ class ResumeParser:
 
 if __name__ == "__main__":
     parser = ResumeParser()
-    resume_path = "Python backend/Resumes/Suraj_Shingade_Resume_Update.pdf"
+    resume_path = "Python backend/Resumes/YashKResume10Oct.pdf"
     parsed_data = parser.parse(resume_path)
     print(json.dumps(parsed_data, indent=2))
