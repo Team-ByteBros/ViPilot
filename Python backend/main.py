@@ -1,22 +1,33 @@
-from fastapi import FastAPI, UploadFile, File
+from fastapi import FastAPI, UploadFile, File, HTTPException
 import shutil
-from resumeParse import extract_text, parse_resume
-from roleMatch import recommend_roles
+import os
+from resumeParse import ResumeParser
 
 app = FastAPI()
 
 @app.post("/analyze-resume")
 async def analyze_resume(file: UploadFile = File(...)):
+    # Create temp file path
     file_path = f"temp_{file.filename}"
 
-    with open(file_path, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
-
-    text = extract_text(file_path)
-    resume_data = parse_resume(text)
-    print(resume_data)
-    roles = recommend_roles(text)
-
-    return {
-        "recommended_roles": roles
-    }
+    try:
+        # Save uploaded file
+        with open(file_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+            
+        # Initialize parser and extract data
+        parser = ResumeParser()
+        data = parser.parse(file_path)
+        
+        return data
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+        
+    finally:
+        # Cleanup temp file
+        if os.path.exists(file_path):
+            try:
+                os.remove(file_path)
+            except:
+                pass

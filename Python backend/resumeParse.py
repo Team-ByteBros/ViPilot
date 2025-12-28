@@ -251,101 +251,6 @@ class ResumeParser:
         return sorted(list(skills))
   
     
-    # def extract_education(self, edu_lines):
-    #     """Extract education details - focusing on college/university degree only."""
-    #     education_list = []
-    #     current_edu = {}
-    
-    #     # Keywords that indicate 12th/HSC (high school) - we'll skip these
-    #     school_indicators = ['xii', '12th', 'hsc', 'higher secondary', 'junior college', 
-    #                     'senior secondary', 'intermediate', 'pre-university']
-    
-    #     i = 0
-    #     while i < len(edu_lines):
-    #         line = edu_lines[i].strip()
-    #         line_lower = line.lower()
-        
-    #         print("line : ", i, " : ", line_lower)
-        
-    #     # Skip empty lines
-    #         if not line:
-    #             i += 1
-    #             continue
-        
-    #         # Check if this line is about 12th/HSC - skip entire entry
-    #         is_school = any(indicator in line_lower for indicator in school_indicators)
-    #         if is_school:
-    #             # Save current entry before skipping
-    #             if current_edu and 'course' in current_edu:
-    #                 education_list.append(current_edu)
-    #                 current_edu = {}
-    #             i += 1
-    #             continue
-            
-    #         # Look for degree patterns
-    #         degree_pattern = r'\b(b\.?\s*tech|bachelor|b\.?\s*e\.?|m\.?\s*tech|master|mba|bca|mca|phd)\b'
-            
-    #         # Also match concatenated versions like "btechin"
-    #         degree_match = re.search(degree_pattern, line, re.IGNORECASE)
-    #         if not degree_match:
-    #             # Try without word boundary for concatenated text
-    #             degree_match = re.search(r'(b\.?tech|btech|bachelor|b\.?e\.?|m\.?tech|mtech|master|mba|bca|mca|phd)', 
-    #                                     line, re.IGNORECASE)
-            
-    #         if degree_match:
-    #             # Start new education entry if we already have one
-    #             if current_edu and 'course' in current_edu:
-    #                 education_list.append(current_edu)
-    #                 current_edu = {}
-                
-    #             # Extract course name
-    #             specialization_match = re.search(
-    #                 r'(computer science|information technology|data science|electronics|mechanical|electrical|civil|computer engineering)', 
-    #                 line, re.IGNORECASE
-    #             )
-                
-    #             print("specialization_match : ", specialization_match)
-                
-    #             if specialization_match:
-    #                 degree = degree_match.group(0).strip()
-    #                 specialization = specialization_match.group(0).strip()
-    #                 current_edu['course'] = f"{degree} in {specialization}".title()
-    #             else:
-    #                 current_edu['course'] = degree_match.group(0).strip().title()
-                
-    #             # Look for years in this line
-    #             year_matches = re.findall(r'\b(20\d{2})\b', line)
-    #             if year_matches:
-    #                 current_edu['graduation_year'] = year_matches[-1]
-            
-    #         # Look for college/university (independent of degree line)
-    #         # Look for college in the same line
-    #             college_keywords = ['institute', 'university', 'college', 'academy']
-    #             for keyword in college_keywords:
-    #                 if keyword in line_lower:
-    #                     # Extract college name: try to get the clean name
-    #                     # Pattern: look for capitalized words around the keyword
-    #                     college_match = re.search(
-    #                         r'([A-Z][a-zA-Z\s\.]+(?:' + keyword + r')[a-zA-Z\s\.]*)',
-    #                         line, re.IGNORECASE
-    #                     )
-    #                     if college_match:
-    #                         college_name = college_match.group(0).strip()
-    #                         # Remove dates from college name
-    #                         college_name = re.sub(r'\b(20\d{2}|19\d{2})\b', '', college_name).strip()
-    #                         # Remove extra spaces and hyphens
-    #                         college_name = re.sub(r'\s+', ' ', college_name)
-    #                         college_name = re.sub(r'\s*[-–]\s*$', '', college_name).strip()
-    #                         current_edu['college'] = college_name
-    #                         break
-            
-    #         i += 1
-    
-    #     # Append the last entry
-    #     if current_edu and 'course' in current_edu:
-    #         education_list.append(current_edu)
-        
-    #     return education_list
 
     def extract_education(self, edu_lines):
         """Extract education details - focusing on college/university degree only."""
@@ -445,7 +350,18 @@ class ResumeParser:
 
         if current_edu and 'course' in current_edu:
             education_list.append(current_edu)
-        return education_list
+            
+        # Normalize to ensure all keys exist
+        final_list = []
+        for edu in education_list:
+            final_list.append({
+                'course': edu.get('course'),
+                'college': edu.get('college'),
+                'graduation_year': edu.get('graduation_year'),
+                'cgpa': edu.get('cgpa')
+            })
+            
+        return final_list
 
     # def extract_tech_from_projects(self, project_lines):
     #     """Extract technologies mentioned in project descriptions."""
@@ -563,27 +479,6 @@ class ResumeParser:
                         if known_skill in tech_clean:
                             tech_list.append(known_skill)
 
-    # def find_role_in_text(self, text):
-    #     """Find a job role in the given text."""
-    #     text_lower = text.lower()
-        
-    #     # Check for exact role matches
-    #     for role in self.known_roles:
-    #         if role in text_lower:
-    #             return role.title()
-        
-    #     # Check for partial matches with common role keywords
-    #     role_keywords = ['developer', 'engineer', 'intern', 'analyst', 
-    #                     'designer', 'manager', 'lead', 'architect',
-    #                     'contributor', 'member', 'coordinator']
-        
-    #     for keyword in role_keywords:
-    #         pattern = r'\b(\w+\s+)?' + keyword + r'(\s+\w+)?\b'
-    #         match = re.search(pattern, text_lower)
-    #         if match:
-    #             return match.group(0).strip().title()
-        
-    #     return None
     
     def extract_experience(self, exp_lines):
         """Extract work experience - role and months worked."""
@@ -862,7 +757,7 @@ class ResumeParser:
         # Split into sections
         sections = self.split_into_sections(text)
         sections['project_technologies'] = list(set(sections['project_technologies']))
-        print("project_tech : ", sections['project_technologies'])
+        
         # Extract structured data
         result = {
             'name': basic_info['name'],
@@ -894,6 +789,6 @@ class ResumeParser:
 
 if __name__ == "__main__":
     parser = ResumeParser()
-    resume_path = "Python backend/Resumes/YashKResume10Oct.pdf"
+    resume_path = "Python backend/Resumes/Meet_Oza_Resume_2.9.pdf"
     parsed_data = parser.parse(resume_path)
     print(json.dumps(parsed_data, indent=2))
