@@ -97,12 +97,65 @@ class ResumeParser:
     
     def fix_spacing(self, text):
         """Fix spacing issues in PDF extracted text."""
-        # Add space before capital letters that follow lowercase letters
+        
+        # 1. Fix: "DeveloperManager" -> "Developer Manager" 
+        # (Capital letter following lowercase, but mostly for English words)
         text = re.sub(r'([a-z])([A-Z])', r'\1 \2', text)
+        
+        # 2. Fix: "Experience.," -> "Experience ., " -> "Experience,"
         # Add space after punctuation if missing
         text = re.sub(r'([.,;:!?])([A-Za-z])', r'\1 \2', text)
-        # Fix common concatenations
+        
+        # 3. Fix: "1st", "2nd" being split
         text = re.sub(r'(\d)(st|nd|rd|th)', r'\1\2', text)
+        
+        # 4. UNIVERSAL FIX: Repair common Tech Stack names damaged by step 1 or PDF extraction
+        # This list covers common technologies that are often CamelCase or have specific spacing
+        replacements = {
+            # Languages
+            r'Java\s*Script': 'JavaScript',
+            r'Type\s*Script': 'TypeScript',
+            r'Coffee\s*Script': 'CoffeeScript',
+            
+            # Frameworks & Libs
+            r'Node\s*\.\s*js': 'Node.js',
+            r'React\s*Js': 'React.js',
+            r'Vue\s*Js': 'Vue.js',
+            r'Next\s*Js': 'Next.js',
+            r'Nest\s*Js': 'Nest.js',
+            r'Express\s*Js': 'Express.js',
+            r'Angular\s*Js': 'AngularJS',
+            r'Tensor\s*Flow': 'TensorFlow',
+            r'Py\s*Torch': 'PyTorch',
+            r'Sci\s*Kit': 'Scikit',
+            r'Mat\s*Plot\s*Lib': 'Matplotlib',
+            r'Power\s*BI': 'PowerBI',
+            
+            # Databases
+            r'Mongo\s*DB': 'MongoDB',
+            r'Postgre\s*SQL': 'PostgreSQL',
+            r'My\s*SQL': 'MySQL',
+            r'No\s*SQL': 'NoSQL',
+            r'Dynamo\s*DB': 'DynamoDB',
+            r'Cosmos\s*DB': 'CosmosDB',
+            
+            # Tools
+            r'Git\s*Hub': 'GitHub',
+            r'Git\s*Lab': 'GitLab',
+            r'Vs\s*Code': 'VS Code',
+            r'Visual\s*Studio': 'Visual Studio',
+            
+            # Concepts
+            r'Back\s*End': 'Backend',
+            r'Front\s*End': 'Frontend',
+            r'Full\s*Stack': 'FullStack',
+            r'Dev\s*Ops': 'DevOps',
+            r'Ci\s*/\s*Cd': 'CI/CD',
+        }
+        
+        for pattern, replacement in replacements.items():
+            text = re.sub(pattern, replacement, text, flags=re.IGNORECASE)
+            
         return text
     
     def extract_text(self, file_path):

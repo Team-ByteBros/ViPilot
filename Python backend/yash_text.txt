@@ -1,0 +1,40 @@
+Yash Karande
++ Pune # yashkarande907@gmail. com (cid:132) +919822508423 (cid:240) Yash Karande § Yashk907
+Introduction
+Software Engineeringundergraduatewithstrongfoundationsin DSA, OOP, andbackendsystems. Experiencedinbuild-
+ingscalablefull-stackand Saa S-styleapplicationsusing Kotlin, JavaScript, Node.js, and MongoDB. Comfortablework-
+inginagileenvironments, writingcleancode, andcollaboratingacrossteams.
+Skills
+Languages: C++, Java, Kotlin, JavaScript
+Mobile: Jetpack Compose, Room, Hilt
+Backend: Node.js, Ktor, Web Socket, RESTAPIs
+Databases: Firebase Firestore(No SQL), MongoDB, SQL(basic)
+Tools&Practices: Git, Git Hub, Postman, Agile, APItesting
+Projects
+Club Connect–University Club&Event Management App Git Hub2
+• Builtaplatformforclubstopostevents, hackathons, andmanagememberships.
+• Addedeventcreation, RSVP, and QR-basedattendancewith Firebase Firestore.
+• Workedinaniterative, agile-styledevelopmentprocess.
+• Tech: Kotlin, Jetpack Compose, Firebase Firestore
+Speedy Serve–Smart Canteen Pre-order System Git Hub2
+• Builtapre-ordersystemcuttingcanteenwaittimesby50%.
+• Developed Androidappforstudentsandawebdashboardforstaff.
+• Builtscalablebackendservicesusing Node.jsand MongoDBtohandlereal-time
+orderupdates.
+• Tech: Node.js, MongoDB, Kotlin, Jetpack Compose, RESTAPIs.
+Alumni Connect–Placement Experience&AIRoadmap Generator Demo Link2
+• Builtaplatformforalumnitoshareplacementexperiencesandinsights.
+• Implemented RAG-basedrecommendationsand AI-generatedroadmapsforprepa-
+ration.
+• Boosteduserengagementby30%throughpersonalizedcontent.
+• Tech: React, Node.js, Supabase, Pinecone, Gemini
+Education
+B. Tech Vishwakarma Instituteof Information Technology, Information Technology 2023-2027
+• GPA:8.98/10
+XII Fatak Junior College, Ratnagiri 2022-2023
+• Percentage:78.30
+Achievements
+• Android Team Memberin Google Developers Group(GDG). 2024-2025
+• Solved300+DSAquestionsonmultipleplatform. Codolio2
+• 1575ratingonleetcode. Leetcode2
+1
