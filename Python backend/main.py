@@ -57,7 +57,7 @@ async def score_resume_endpoint(
     jd_data = jd_parser.parse(job_description)
     
     # 3. Score
-    score_result = scorer.score(resume_data['skills'], jd_data)
+    score_result = scorer.score(resume_data['skills'], jd_data, resume_sentences=resume_data.get('sentences', []))
     
     return {
         "score_details": score_result,

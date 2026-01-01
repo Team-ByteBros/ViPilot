@@ -710,6 +710,7 @@ class ResumeParser:
             text
         ),
             'education': self.extract_education(sections['education']),
+            'sentences': re.split(r'[.\n•]', text) if text else []
             # 'techs': self.extract_tech_proj(sections['projects']),
             # 'experience': self.extract_experience(sections['experience'])
         }
