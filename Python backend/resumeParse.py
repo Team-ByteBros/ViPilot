@@ -30,7 +30,7 @@ class ResumeParser:
             # Data & AI
             'data scientist', 'data analyst', 'data engineer',
             'machine learning engineer', 'ai engineer', 'ml engineer',
-            'business analyst', 'research scientist', 'artificial intelligence intern',
+            'business analyst', 'research scientist',
             
             # Design & Product
             'ui/ux designer', 'product designer', 'graphic designer',
@@ -38,7 +38,7 @@ class ResumeParser:
             
             # Internships & Entry Level
             'intern', 'trainee', 'associate', 'junior developer',
-            'software intern', 'data science intern', 'sde intern', 'cloud application developer trainee',
+            'software intern', 'data science intern', 'sde intern',
             
             # Leadership & Management
             'team lead', 'tech lead', 'engineering manager',
@@ -97,12 +97,65 @@ class ResumeParser:
     
     def fix_spacing(self, text):
         """Fix spacing issues in PDF extracted text."""
-        # Add space before capital letters that follow lowercase letters
+        
+        # 1. Fix: "DeveloperManager" -> "Developer Manager" 
+        # (Capital letter following lowercase, but mostly for English words)
         text = re.sub(r'([a-z])([A-Z])', r'\1 \2', text)
+        
+        # 2. Fix: "Experience.," -> "Experience ., " -> "Experience,"
         # Add space after punctuation if missing
         text = re.sub(r'([.,;:!?])([A-Za-z])', r'\1 \2', text)
-        # Fix common concatenations
+        
+        # 3. Fix: "1st", "2nd" being split
         text = re.sub(r'(\d)(st|nd|rd|th)', r'\1\2', text)
+        
+        # 4. UNIVERSAL FIX: Repair common Tech Stack names damaged by step 1 or PDF extraction
+        # This list covers common technologies that are often CamelCase or have specific spacing
+        replacements = {
+            # Languages
+            r'Java\s*Script': 'JavaScript',
+            r'Type\s*Script': 'TypeScript',
+            r'Coffee\s*Script': 'CoffeeScript',
+            
+            # Frameworks & Libs
+            r'Node\s*\.\s*js': 'Node.js',
+            r'React\s*Js': 'React.js',
+            r'Vue\s*Js': 'Vue.js',
+            r'Next\s*Js': 'Next.js',
+            r'Nest\s*Js': 'Nest.js',
+            r'Express\s*Js': 'Express.js',
+            r'Angular\s*Js': 'AngularJS',
+            r'Tensor\s*Flow': 'TensorFlow',
+            r'Py\s*Torch': 'PyTorch',
+            r'Sci\s*Kit': 'Scikit',
+            r'Mat\s*Plot\s*Lib': 'Matplotlib',
+            r'Power\s*BI': 'PowerBI',
+            
+            # Databases
+            r'Mongo\s*DB': 'MongoDB',
+            r'Postgre\s*SQL': 'PostgreSQL',
+            r'My\s*SQL': 'MySQL',
+            r'No\s*SQL': 'NoSQL',
+            r'Dynamo\s*DB': 'DynamoDB',
+            r'Cosmos\s*DB': 'CosmosDB',
+            
+            # Tools
+            r'Git\s*Hub': 'GitHub',
+            r'Git\s*Lab': 'GitLab',
+            r'Vs\s*Code': 'VS Code',
+            r'Visual\s*Studio': 'Visual Studio',
+            
+            # Concepts
+            r'Back\s*End': 'Backend',
+            r'Front\s*End': 'Frontend',
+            r'Full\s*Stack': 'FullStack',
+            r'Dev\s*Ops': 'DevOps',
+            r'Ci\s*/\s*Cd': 'CI/CD',
+        }
+        
+        for pattern, replacement in replacements.items():
+            text = re.sub(pattern, replacement, text, flags=re.IGNORECASE)
+            
         return text
     
     def extract_text(self, file_path):
@@ -251,6 +304,101 @@ class ResumeParser:
         return sorted(list(skills))
   
     
+    # def extract_education(self, edu_lines):
+    #     """Extract education details - focusing on college/university degree only."""
+    #     education_list = []
+    #     current_edu = {}
+    
+    #     # Keywords that indicate 12th/HSC (high school) - we'll skip these
+    #     school_indicators = ['xii', '12th', 'hsc', 'higher secondary', 'junior college', 
+    #                     'senior secondary', 'intermediate', 'pre-university']
+    
+    #     i = 0
+    #     while i < len(edu_lines):
+    #         line = edu_lines[i].strip()
+    #         line_lower = line.lower()
+        
+    #         print("line : ", i, " : ", line_lower)
+        
+    #     # Skip empty lines
+    #         if not line:
+    #             i += 1
+    #             continue
+        
+    #         # Check if this line is about 12th/HSC - skip entire entry
+    #         is_school = any(indicator in line_lower for indicator in school_indicators)
+    #         if is_school:
+    #             # Save current entry before skipping
+    #             if current_edu and 'course' in current_edu:
+    #                 education_list.append(current_edu)
+    #                 current_edu = {}
+    #             i += 1
+    #             continue
+            
+    #         # Look for degree patterns
+    #         degree_pattern = r'\b(b\.?\s*tech|bachelor|b\.?\s*e\.?|m\.?\s*tech|master|mba|bca|mca|phd)\b'
+            
+    #         # Also match concatenated versions like "btechin"
+    #         degree_match = re.search(degree_pattern, line, re.IGNORECASE)
+    #         if not degree_match:
+    #             # Try without word boundary for concatenated text
+    #             degree_match = re.search(r'(b\.?tech|btech|bachelor|b\.?e\.?|m\.?tech|mtech|master|mba|bca|mca|phd)', 
+    #                                     line, re.IGNORECASE)
+            
+    #         if degree_match:
+    #             # Start new education entry if we already have one
+    #             if current_edu and 'course' in current_edu:
+    #                 education_list.append(current_edu)
+    #                 current_edu = {}
+                
+    #             # Extract course name
+    #             specialization_match = re.search(
+    #                 r'(computer science|information technology|data science|electronics|mechanical|electrical|civil|computer engineering)', 
+    #                 line, re.IGNORECASE
+    #             )
+                
+    #             print("specialization_match : ", specialization_match)
+                
+    #             if specialization_match:
+    #                 degree = degree_match.group(0).strip()
+    #                 specialization = specialization_match.group(0).strip()
+    #                 current_edu['course'] = f"{degree} in {specialization}".title()
+    #             else:
+    #                 current_edu['course'] = degree_match.group(0).strip().title()
+                
+    #             # Look for years in this line
+    #             year_matches = re.findall(r'\b(20\d{2})\b', line)
+    #             if year_matches:
+    #                 current_edu['graduation_year'] = year_matches[-1]
+            
+    #         # Look for college/university (independent of degree line)
+    #         # Look for college in the same line
+    #             college_keywords = ['institute', 'university', 'college', 'academy']
+    #             for keyword in college_keywords:
+    #                 if keyword in line_lower:
+    #                     # Extract college name: try to get the clean name
+    #                     # Pattern: look for capitalized words around the keyword
+    #                     college_match = re.search(
+    #                         r'([A-Z][a-zA-Z\s\.]+(?:' + keyword + r')[a-zA-Z\s\.]*)',
+    #                         line, re.IGNORECASE
+    #                     )
+    #                     if college_match:
+    #                         college_name = college_match.group(0).strip()
+    #                         # Remove dates from college name
+    #                         college_name = re.sub(r'\b(20\d{2}|19\d{2})\b', '', college_name).strip()
+    #                         # Remove extra spaces and hyphens
+    #                         college_name = re.sub(r'\s+', ' ', college_name)
+    #                         college_name = re.sub(r'\s*[-–]\s*$', '', college_name).strip()
+    #                         current_edu['college'] = college_name
+    #                         break
+            
+    #         i += 1
+    
+    #     # Append the last entry
+    #     if current_edu and 'course' in current_edu:
+    #         education_list.append(current_edu)
+        
+    #     return education_list
 
     def extract_education(self, edu_lines):
         """Extract education details - focusing on college/university degree only."""
@@ -350,18 +498,7 @@ class ResumeParser:
 
         if current_edu and 'course' in current_edu:
             education_list.append(current_edu)
-            
-        # Normalize to ensure all keys exist
-        final_list = []
-        for edu in education_list:
-            final_list.append({
-                'course': edu.get('course'),
-                'college': edu.get('college'),
-                'graduation_year': edu.get('graduation_year'),
-                'cgpa': edu.get('cgpa')
-            })
-            
-        return final_list
+        return education_list
 
     # def extract_tech_from_projects(self, project_lines):
     #     """Extract technologies mentioned in project descriptions."""
@@ -448,316 +585,173 @@ class ResumeParser:
 
 
     def _extract_tech_from_line(self, line, tech_list):
+        """Helper method to extract technologies from a single line."""
         line_lower = line.lower()
-
-        # ---------- Pattern 1: Explicit "Tech / Technologies used" ----------
+        # tech_list = []
+        
+        # Pattern 1: Explicit "Tech:" or "Technologies Used:"
         tech_pattern = r'(tech(?:nologies)?(?:\s+used)?|built\s+with|stack)[:\s]*(.+)'
         match = re.search(tech_pattern, line, re.IGNORECASE)
-
-        tech_string = None
-
+        
         if match:
             tech_string = match.group(2)
-
-        # ---------- Pattern 2: Project title | Tech1, Tech2 ----------
-        elif '|' in line:
-            parts = line.split('|', 1)
-            if len(parts) == 2:
-                tech_string = parts[1]
-
-        # ---------- Extract technologies ----------
-        if tech_string:
-            techs = re.split(r'[,/]', tech_string)
+            # Split by comma
+            techs = re.split(r'[,]', tech_string)
             for tech in techs:
                 tech_clean = tech.strip().lower()
-
+                # Remove common words
+                tech_clean = re.sub(r'\b(and|or|with)\b', '', tech_clean).strip()
+                
+                # Match against known skills
                 for known_skill in self.known_skills:
                     if len(known_skill) <= 3:
-                        if re.search(r'\b' + re.escape(known_skill) + r'\b', tech_clean):
+                        # For short words, require exact word match with word boundaries
+                        pattern = r'\b' + re.escape(known_skill) + r'\b'
+                        if re.search(pattern, tech_clean):
                             tech_list.append(known_skill)
                     else:
+                        # For longer words, substring match is fine
                         if known_skill in tech_clean:
                             tech_list.append(known_skill)
+        
 
+    # def find_role_in_text(self, text):
+    #     """Find a job role in the given text."""
+    #     text_lower = text.lower()
+        
+    #     # Check for exact role matches
+    #     for role in self.known_roles:
+    #         if role in text_lower:
+    #             return role.title()
+        
+    #     # Check for partial matches with common role keywords
+    #     role_keywords = ['developer', 'engineer', 'intern', 'analyst', 
+    #                     'designer', 'manager', 'lead', 'architect',
+    #                     'contributor', 'member', 'coordinator']
+        
+    #     for keyword in role_keywords:
+    #         pattern = r'\b(\w+\s+)?' + keyword + r'(\s+\w+)?\b'
+    #         match = re.search(pattern, text_lower)
+    #         if match:
+    #             return match.group(0).strip().title()
+        
+    #     return None
     
-    def extract_experience(self, exp_lines):
-        """Extract work experience - role and months worked."""
-        experiences = []
-        
-        i = 0
-        while i < len(exp_lines):
-            line = exp_lines[i].strip()
-            line_lower = line.lower()
-            
-            # Skip empty lines
-            if not line:
-                i += 1
-                continue
-            
-            # Skip bullet points (these are descriptions, not roles)
-            if line.startswith('•') or line.startswith('●') or line.startswith('-') or line.startswith('○'):
-                i += 1
-                continue
-            
-            # Skip lines that are clearly descriptions (contain common description words)
-            description_indicators = [
-                'developed', 'worked', 'completed', 'gained', 'implemented',
-                'created', 'built', 'designed', 'managed', 'led', 'achieved',
-                'leveraged', 'integrated', 'deployed', 'features', 'include'
-            ]
-            
-            # If line starts with description words, skip it
-            first_word = line_lower.split()[0] if line_lower.split() else ''
-            if first_word in description_indicators:
-                i += 1
-                continue
-            
-            # Skip if line contains percentage or numbers like "92 percent accuracy"
-            if re.search(r'\d+\s*(percent|%|accuracy)', line_lower):
-                i += 1
-                continue
-            
-            # Skip lines that look like continuation of descriptions
-            if line_lower.startswith(('and ', 'or ', 'including ', 'with ', 'through ')):
-                i += 1
-                continue
-            
-            # Look for date pattern in the line - this is likely a role line
-            has_date = self._has_date_pattern(line)
-            
-            # Look for role keywords
-            has_role = any(role in line_lower for role in self.known_roles)
-            
-            # Look for company indicators (Remote, location, |)
-            has_company_indicator = '|' in line or 'remote' in line_lower
-            
-            # This line is likely a role if:
-            # 1. It has a date pattern, OR
-            # 2. It has a known role keyword, OR  
-            # 3. It has company indicators AND is not too long
-            is_role_line = (has_date or has_role or (has_company_indicator and len(line) < 100))
-            
-            if not is_role_line:
-                i += 1
-                continue
-            
-            experience_entry = {
-                'role': None,
-                'months': None
-            }
-            
-            # Extract role from the line
-            # Pattern: "Role Title" followed by date, or "Company | Role"
-            
-            # First, try to extract date from this line
-            months = self._extract_duration(line)
-            if months is not None:
-                experience_entry['months'] = months
-                
-                # Remove date part to get role
-                line_without_date = re.sub(
-                    r'(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*[\s\'`]*\d{2,4}\s*[-–]\s*(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec|present|current)[a-z]*[\s\'`]*\d{0,4}',
-                    '',
-                    line,
-                    flags=re.IGNORECASE
-                ).strip()
-                
-                # Also remove year-only patterns
-                line_without_date = re.sub(r'\d{4}\s*[-–]\s*\d{4}', '', line_without_date).strip()
-                
-                experience_entry['role'] = line_without_date
-            
-            # If no date in current line, look ahead
-            if experience_entry['months'] is None:
-                for j in range(i + 1, min(i + 3, len(exp_lines))):
-                    next_line = exp_lines[j].strip()
-                    months = self._extract_duration(next_line)
-                    if months is not None:
-                        experience_entry['months'] = months
-                        break
-            
-            # If still no role extracted, try pattern matching
-            if not experience_entry['role']:
-                # Pattern: "Company, Role" or "Role, Company"
-                if ',' in line:
-                    parts = [p.strip() for p in line.split(',')]
-                    
-                    # Check which part contains a known role
-                    for part in parts:
-                        part_lower = part.lower()
-                        for known_role in self.known_roles:
-                            if known_role in part_lower:
-                                experience_entry['role'] = part
-                                break
-                        if experience_entry['role']:
-                            break
-                    
-                    # If no known role found, take first part (usually role comes first)
-                    if not experience_entry['role'] and len(parts) >= 1:
-                        experience_entry['role'] = parts[0]
-                else:
-                    # Check next line for company name (if it has | or Remote)
-                    if i + 1 < len(exp_lines):
-                        next_line = exp_lines[i + 1].strip()
-                        if '|' in next_line or 'remote' in next_line.lower():
-                            # Current line is the role
-                            experience_entry['role'] = line
-            
-            # Clean up role - remove trailing month names
-            if experience_entry['role']:
-                experience_entry['role'] = re.sub(
-                    r'\s*(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*$',
-                    '',
-                    experience_entry['role'],
-                    flags=re.IGNORECASE
-                ).strip()
-            
-            # Only add if we have a valid role
-            if experience_entry['role'] and len(experience_entry['role']) > 5:
-                experiences.append(experience_entry)
-            
-            i += 1
-        
-        # Remove duplicates
-        seen = set()
-        filtered = []
-        for exp in experiences:
-            key = (exp['role'], exp['months'])
-            if key not in seen and exp['role']:
-                seen.add(key)
-                filtered.append(exp)
-        
-        return filtered
 
-    def _has_date_pattern(self, line):
-        """Check if line contains a date pattern."""
-        date_patterns = [
-            r'(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*[\s\'`]*\d{2,4}',
-            r'\d{4}\s*[-–]\s*\d{4}',
-            r'(present|current)'
-        ]
+    # def extract_experience(self, exp_lines):
+    #     """Extract work experience/internship details."""
+    #     experiences = []
+    #     i = 0
         
-        for pattern in date_patterns:
-            if re.search(pattern, line, re.IGNORECASE):
-                return True
-        return False
-
-    def _extract_duration(self, line):
-        """Helper to calculate months of experience from duration string."""
-        from datetime import datetime
-        
-        # Month name to number mapping
-        month_map = {
-            'jan': 1, 'january': 1,
-            'feb': 2, 'february': 2,
-            'mar': 3, 'march': 3,
-            'apr': 4, 'april': 4,
-            'may': 5,
-            'jun': 6, 'june': 6,
-            'jul': 7, 'july': 7,
-            'aug': 8, 'august': 8,
-            'sep': 9, 'september': 9,
-            'oct': 10, 'october': 10,
-            'nov': 11, 'november': 11,
-            'dec': 12, 'december': 12
-        }
-        
-        # Pattern 1: "Aug'24 - Mar'25" or "Aug 2024 - Mar 2025"
-        pattern1 = r"(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*[\s'`]*(\d{2,4})\s*[-–]\s*(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*[\s'`]*(\d{2,4})"
-        match = re.search(pattern1, line, re.IGNORECASE)
-        
-        if match:
-            start_month = match.group(1).lower()
-            start_year = match.group(2)
-            end_month = match.group(3).lower()
-            end_year = match.group(4)
+    #     while i < len(exp_lines):
+    #         line = exp_lines[i].strip()
             
-            # Convert 2-digit year to 4-digit
-            if len(start_year) == 2:
-                start_year = '20' + start_year
-            if len(end_year) == 2:
-                end_year = '20' + end_year
+    #         # Skip bullet points and short lines
+    #         if line.startswith('•') or line.startswith('-') or len(line) < 5:
+    #             i += 1
+    #             continue
             
-            # Get month numbers
-            start_month_num = month_map.get(start_month[:3])
-            end_month_num = month_map.get(end_month[:3])
+    #         # Look for lines that might contain company and role
+    #         # Pattern 1: "Company Name, Role"
+    #         # Pattern 2: "Company Name - Role"
+    #         # Pattern 3: "Role at Company Name"
             
-            if start_month_num and end_month_num:
-                # Calculate months difference
-                start_date = datetime(int(start_year), start_month_num, 1)
-                end_date = datetime(int(end_year), end_month_num, 1)
+    #         company = None
+    #         role = None
+    #         time_period = None
+            
+    #         # Check if line has company/role pattern
+    #         if ',' in line or '–' in line or ' - ' in line:
+    #             # Split by comma or dash
+    #             parts = re.split(r'[,–\-]', line, maxsplit=1)
                 
-                months_diff = (end_date.year - start_date.year) * 12 + (end_date.month - start_date.month)
-                return months_diff + 1  # +1 to include both start and end months
-        
-        # Pattern 2: "Aug'24 - Present" or "Aug 2024 - Present"
-        pattern2 = r"(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*[\s'`]*(\d{2,4})\s*[-–]\s*(present|current)"
-        match = re.search(pattern2, line, re.IGNORECASE)
-        
-        if match:
-            start_month = match.group(1).lower()
-            start_year = match.group(2)
+    #             if len(parts) >= 2:
+    #                 part1 = parts[0].strip()
+    #                 part2 = parts[1].strip()
+                    
+    #                 # Check which part is role
+    #                 role1 = self.find_role_in_text(part1)
+    #                 role2 = self.find_role_in_text(part2)
+                    
+    #                 if role2:
+    #                     company = part1
+    #                     role = role2
+    #                 elif role1:
+    #                     role = role1
+    #                     company = part2
+    #                 else:
+    #                     # Default: first part is company
+    #                     company = part1
+    #                     role = part2
+    #         else:
+    #             # Single line - try to extract role from it
+    #             potential_role = self.find_role_in_text(line)
+    #             if potential_role:
+    #                 role = potential_role
+    #                 # Remove role from line to get company
+    #                 company = re.sub(re.escape(potential_role), '', line, flags=re.IGNORECASE).strip()
+    #                 company = re.sub(r'[,\-–]', '', company).strip()
+    #             else:
+    #                 company = line
             
-            # Convert 2-digit year to 4-digit
-            if len(start_year) == 2:
-                start_year = '20' + start_year
-            
-            # Get month number
-            start_month_num = month_map.get(start_month[:3])
-            
-            if start_month_num:
-                # Calculate from start to current month
-                start_date = datetime(int(start_year), start_month_num, 1)
-                current_date = datetime.now()
+    #         # Look ahead for date/time period in next few lines
+    #         for j in range(i + 1, min(i + 4, len(exp_lines))):
+    #             next_line = exp_lines[j].strip()
                 
-                months_diff = (current_date.year - start_date.year) * 12 + (current_date.month - start_date.month)
-                return months_diff + 1
-        
-        # Pattern 3: "2024 - 2025" (assume full years)
-        pattern3 = r"(\d{4})\s*[-–]\s*(\d{4})"
-        match = re.search(pattern3, line)
-        
-        if match:
-            start_year = int(match.group(1))
-            end_year = int(match.group(2))
-            
-            # Calculate year difference in months
-            return (end_year - start_year) * 12
-        
-        # Pattern 4: "Jan 2025 – April 2025"
-        pattern4 = r"(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s+(\d{4})\s*[-–]\s*(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s+(\d{4})"
-        match = re.search(pattern4, line, re.IGNORECASE)
-        
-        if match:
-            start_month = match.group(1).lower()
-            start_year = match.group(2)
-            end_month = match.group(3).lower()
-            end_year = match.group(4)
-            
-            start_month_num = month_map.get(start_month[:3])
-            end_month_num = month_map.get(end_month[:3])
-            
-            if start_month_num and end_month_num:
-                start_date = datetime(int(start_year), start_month_num, 1)
-                end_date = datetime(int(end_year), end_month_num, 1)
+    #             # Date patterns
+    #             date_patterns = [
+    #                 r"(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*[\s'`]*\d{2,4}\s*[-–]\s*(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*[\s'`]*\d{2,4}",
+    #                 r"(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*[\s'`]*\d{2,4}\s*[-–]\s*(present|current)",
+    #                 r"\d{4}\s*[-–]\s*\d{4}",
+    #                 r"\d{4}\s*[-–]\s*(present|current)"
+    #             ]
                 
-                months_diff = (end_date.year - start_date.year) * 12 + (end_date.month - start_date.month)
-                return months_diff + 1
+    #             for pattern in date_patterns:
+    #                 match = re.search(pattern, next_line, re.IGNORECASE)
+    #                 if match:
+    #                     time_period = match.group(0)
+    #                     break
+                
+    #             if time_period:
+    #                 break
+            
+    #         # Only add if we have at least company or role
+    #         if company or role:
+    #             experiences.append({
+    #                 'company': company if company else None,
+    #                 'role': role if role else None,
+    #                 'time_period': time_period
+    #             })
+            
+    #         i += 1
         
-        return None
+    #     # Remove duplicates and invalid entries
+    #     seen = set()
+    #     filtered_experiences = []
+    #     for exp in experiences:
+    #         # Create a unique key
+    #         key = (exp['company'], exp['role'])
+    #         if key not in seen and (exp['company'] or exp['role']):
+    #             seen.add(key)
+    #             filtered_experiences.append(exp)
+        
+    #     return filtered_experiences
+    
 
     def parse(self, file_path):
         """Main parsing function."""
         # Extract text
         text = self.extract_text(file_path)
-        
+        return self.parse_text(text)
+
+    def parse_text(self, text):
+        """Parse structured data from text."""
         # Extract basic info
         basic_info = self.extract_basic_info(text)
         
         # Split into sections
         sections = self.split_into_sections(text)
-        sections['project_technologies'] = list(set(sections['project_technologies']))
-        
+        print("projects : ", sections['projects'])
         # Extract structured data
         result = {
             'name': basic_info['name'],
@@ -769,7 +763,7 @@ class ResumeParser:
             text
         ),
             'education': self.extract_education(sections['education']),
-            'experience': self.extract_experience(sections['experience']) 
+            'sentences': re.split(r'[.\n•]', text) if text else []
             # 'techs': self.extract_tech_proj(sections['projects']),
             # 'experience': self.extract_experience(sections['experience'])
         }
