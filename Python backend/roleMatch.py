@@ -3,12 +3,20 @@ import numpy as np
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
 
-model = SentenceTransformer("all-MiniLM-L6-v2")
+from model_utils import ModelManager
+
+# Get shared model instance
+model = ModelManager().get_model()
 
 with open("roles.json") as f:
     roles = json.load(f)
 
-role_embeddings = model.encode([r["skills"] for r in roles])
+# Compute embeddings if model is available
+if model:
+    role_embeddings = model.encode([r["skills"] for r in roles])
+else:
+    role_embeddings = []
+
 
 def recommend_roles(resume_text, top_k=3):
     resume_embedding = model.encode([resume_text])

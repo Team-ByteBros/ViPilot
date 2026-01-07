@@ -2,6 +2,7 @@ import re
 from typing import List, Dict, Set, Tuple
 import torch
 from sentence_transformers import SentenceTransformer, util
+from model_utils import ModelManager
 
 class JobDescriptionParser:
     """Parses job descriptions to extract skill requirements."""
@@ -99,12 +100,8 @@ class ResumeScorer:
             "lead", "engineer", "test", "debug"
         }
         # Phase 3: Semantic Model
-        # Load model only once
-        try:
-             self.model = SentenceTransformer('all-MiniLM-L6-v2')
-        except Exception as e:
-             print(f"Warning: Could not load SentenceTransformer: {e}")
-             self.model = None
+        # Load model only once using ModelManager
+        self.model = ModelManager().get_model()
     
     def normalize_skill(self, skill: str) -> str:
         return skill.strip().lower()
@@ -133,7 +130,7 @@ class ResumeScorer:
                     
         return {"contextual": False, "evidence": None}
 
-    def find_semantic_match(self, missing_jd_skill: str, resume_sentences: List[str]) -> Dict:
+    def find_semantic_match(self, missing_jd_skill: str, resume_sentences: List[str], cached_sentence_embeddings=None) -> Dict:
         """
         Use embeddings to find if a missing skill is implicitly present.
         """
@@ -160,8 +157,11 @@ class ResumeScorer:
             # Encode missing skill
             jd_embedding = self.model.encode(missing_jd_skill, convert_to_tensor=True)
             
-            # Encode sentences (batch)
-            sentence_embeddings = self.model.encode(resume_sentences, convert_to_tensor=True)
+            # Encode sentences (batch) or use cached
+            if cached_sentence_embeddings is not None:
+                sentence_embeddings = cached_sentence_embeddings
+            else:
+                sentence_embeddings = self.model.encode(resume_sentences, convert_to_tensor=True)
             
             # Compute cosine similarities
             cosine_scores = util.cos_sim(jd_embedding, sentence_embeddings)[0]
@@ -200,6 +200,14 @@ class ResumeScorer:
         Calculates the relevance score with Rule-based, Contextual, and Semantic matching.
         """
         resume_skills_set = {self.normalize_skill(s) for s in resume_skills}
+        
+        # Optimization: Pre-compute sentence embeddings once
+        cached_embeddings = None
+        if self.model and resume_sentences:
+            try:
+                cached_embeddings = self.model.encode(resume_sentences, convert_to_tensor=True)
+            except Exception as e:
+                print(f"Warning: Failed to pre-compute embeddings: {e}")
         
         # Refine JD skills
         must_have_skills = self.extract_skills_from_jd(jd_data['must_have'])
@@ -243,7 +251,7 @@ class ResumeScorer:
                     
                 else:
                     # MISSING - Try Semantic Recovery
-                    sem = self.find_semantic_match(skill, resume_sentences)
+                    sem = self.find_semantic_match(skill, resume_sentences, cached_sentence_embeddings=cached_embeddings)
                     if sem['match']:
                         # Recovered!
                         score_boost = 0.6
