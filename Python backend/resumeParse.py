@@ -2,6 +2,8 @@ import pdfplumber
 from docx import Document
 import re
 import json
+import os
+# import google.generativeai as genai
 
 class ResumeParser:
     """
@@ -738,11 +740,107 @@ class ResumeParser:
     #     return filtered_experiences
     
 
+    def improve_with_gemini(self, text, extracted_json):
+        """Use Gemini to format and enhance the extracted resume data."""
+        api_key = os.getenv("GEMINI_API_KEY")
+        if not api_key:
+            print("⚠️ GEMINI_API_KEY not found. Skipping LLM enhancement.")
+            return extracted_json
+        
+        try:
+            from google import genai
+            from google.genai import types
+            
+            client = genai.Client(api_key=api_key)
+            
+            prompt = f"""You are an expert ATS resume parser. Extract structured data from the resume text below.
+
+        PRELIMINARY EXTRACTION (may have errors or missing data):
+        {json.dumps(extracted_json, indent=2)}
+
+        FULL RESUME TEXT:
+        ---------------------------
+        {text}
+        ---------------------------
+
+        YOUR TASK:
+        1. Fix any errors in the preliminary extraction (wrong email format, missing @ symbols, etc.)
+        2. Extract MISSING "experience" data - this is critical!
+        3. Extract company name, role, and time period for each experience
+        4. Ensure all skills are properly capitalized
+        5. Fix college names if they have spacing issues
+
+        Return ONLY a valid JSON object with this EXACT structure:
+        {{
+        "name": "Full Name",
+        "email": "correct.email@domain.com",
+        "phone": "Phone Number",
+        "skills": ["Skill1", "Skill2"],
+        "education": [
+            {{
+            "course": "Degree Name",
+            "college": "College/University Name",
+            "graduation_year": "2027",
+            "cgpa": "9.01"
+            }}
+        ],
+        "experience": [
+            {{
+            "company": "Company Name",
+            "role": "Job Title",
+            "months": 8
+            }}
+        ]
+        }}
+
+        IMPORTANT:
+        - Calculate "months" as the number of months between start and end dates
+        - If experience is missing in preliminary extraction, YOU MUST extract it from the resume text
+        - Return ONLY the JSON, no markdown, no explanation
+        """
+                
+            response = client.models.generate_content(
+                    model='gemini-2.0-flash-exp',
+                    contents=prompt
+                )
+                
+                # Extract text from response
+            result_text = response.text.strip()
+                
+            # Clean markdown formatting
+            if result_text.startswith("```json"):
+                result_text = result_text[7:]
+            elif result_text.startswith("```"):
+                result_text = result_text[3:]
+            if result_text.endswith("```"):
+                result_text = result_text[:-3]
+            
+            result_text = result_text.strip()
+                
+            # Parse JSON
+            enhanced_json = json.loads(result_text)
+            print("✅ Gemini enhancement successful")
+            return enhanced_json
+                
+        except ImportError:
+            print("⚠️ google-genai not installed. Run: pip install google-genai")
+            return extracted_json
+        except json.JSONDecodeError as e:
+            print(f"❌ Gemini returned invalid JSON: {e}")
+            # print(f"Response: {result_text[:500]}")
+            return extracted_json
+        except Exception as e:
+            print(f"❌ Gemini Error: {e}")
+            return extracted_json
+
     def parse(self, file_path):
         """Main parsing function."""
         # Extract text
         text = self.extract_text(file_path)
-        return self.parse_text(text)
+        result = self.parse_text(text)
+        result = self.improve_with_gemini(text, result)
+        print("gemini result : ", result)
+        return result
 
     def parse_text(self, text):
         """Parse structured data from text."""
@@ -751,7 +849,7 @@ class ResumeParser:
         
         # Split into sections
         sections = self.split_into_sections(text)
-        print("projects : ", sections['projects'])
+        # print("projects : ", sections['projects'])
         # Extract structured data
         result = {
             'name': basic_info['name'],
@@ -763,7 +861,7 @@ class ResumeParser:
             text
         ),
             'education': self.extract_education(sections['education']),
-            'sentences': re.split(r'[.\n•]', text) if text else []
+            # 'sentences': re.split(r'[.\n•]', text) if text else []
             # 'techs': self.extract_tech_proj(sections['projects']),
             # 'experience': self.extract_experience(sections['experience'])
         }
@@ -782,6 +880,9 @@ class ResumeParser:
 
 
 if __name__ == "__main__":
+    from dotenv import load_dotenv
+    load_dotenv()  # Load .env file
+    
     parser = ResumeParser()
     resume_path = "Python backend/Resumes/Meet_Oza_Resume_2.9.pdf"
     parsed_data = parser.parse(resume_path)
