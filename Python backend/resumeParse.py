@@ -838,7 +838,7 @@ class ResumeParser:
         # Extract text
         text = self.extract_text(file_path)
         result = self.parse_text(text)
-        result = self.improve_with_gemini(text, result)
+        # result = self.improve_with_gemini(text, result)
         print("gemini result : ", result)
         return result
 
